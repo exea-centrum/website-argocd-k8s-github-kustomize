@@ -25,6 +25,16 @@ Po _pushu_ do gałęzi `main`, GitHub Actions:
 - ArgoCD automatycznie wdroży nową wersję aplikacji.
 - davtro
 
+### **3\. Jeśli obraz jest prywatny — dodaj dostęp w Kubernetes**
+
+Utwórz **sekret** z danymi logowania do GHCR (z konta, które może odczytywać paczki):
+
+`kubectl create secret docker-registry ghcr-secret \`  
+ `--docker-server=ghcr.io \`  
+ `--docker-username=<twoj_login_github> \`  
+ `--docker-password=<twój_personal_access_token> \`  
+ `--namespace=davtrokustomize`
+
 ## **✅ Kroki naprawy (dla organizacji `exea-centrum`)**
 
 ### **1️⃣ Włącz GHCR permissions dla GITHUB_TOKEN**
