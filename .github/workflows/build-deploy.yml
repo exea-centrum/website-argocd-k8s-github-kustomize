@@ -1,0 +1,51 @@
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches: [ main ]
+
+env:
+  IMAGE_NAME: website-simple-argocd-k8s-github-kustomize
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4 # Updated to latest version
+
+      - name: List build context
+        run: ls -la # Debug step to show files in context
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3 # Updated to latest version
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6 # Updated to latest version
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest
+
+      - name: Update Kustomization
+        run: |
+          cd manifests/production
+          sed -i "s|newTag:.*|newTag: ${{ github.sha }}|g" kustomization.yaml
+          
+      - name: Commit changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add manifests/production/kustomization.yaml
+          git commit -m "Update image to ${{ github.sha }}" || echo "No changes"
+          git push
