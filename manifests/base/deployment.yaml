@@ -14,28 +14,45 @@ spec:
       labels:
         app: website-game-theory
     spec:
+      # 🔑 jeśli obraz z GHCR jest prywatny — musisz dodać ten sekret:
+      imagePullSecrets:
+        - name: ghcr-secret
+
       containers:
-      - name: website
-        image: ghcr.io/exea-centrum/website-simple-argocd-k8s-github-kustomize:latest
-        ports:
-        - containerPort: 80
-          name: http
-        resources:
-          requests:
-            memory: "64Mi"
-            cpu: "100m"
-          limits:
-            memory: "128Mi"
-            cpu: "200m"
-        livenessProbe:
-          httpGet:
-            path: /
-            port: 80
-          initialDelaySeconds: 10
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /
-            port: 80
-          initialDelaySeconds: 5
-          periodSeconds: 5
+        - name: website
+          image: ghcr.io/exea-centrum/website-simple-argocd-k8s-github-kustomize:latest
+          imagePullPolicy: Always # ✅ zawsze pobieraj najnowszy obraz
+          ports:
+            - containerPort: 80
+              name: http
+
+          # 🔹 Zasoby (dobre wartości startowe)
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "100m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+
+          # 🔹 Proby zdrowia
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+
+      # 🔹 Restart policy — domyślnie Always, ale jawnie lepiej
+      restartPolicy: Always
