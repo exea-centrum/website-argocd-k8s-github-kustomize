@@ -20,7 +20,7 @@ spec:
 
       containers:
         - name: website
-          image: ghcr.io/exea-centrum/website-simple-argocd-k8s-github-kustomize:latest
+          image: ghcr.io/exea-centrum/website-argocd-k8s-github-kustomize:latest
           imagePullPolicy: Always # ✅ zawsze pobieraj najnowszy obraz
           ports:
             - containerPort: 80
