@@ -1,9 +1,7 @@
 FROM nginx:alpine
 
-# Skopiuj pliki strony (jeśli istnieją)
-COPY index.html /usr/share/nginx/html/
-COPY *.css /usr/share/nginx/html/
-COPY *.js /usr/share/nginx/html/
+# Skopiuj całą zawartość bieżącego katalogu
+COPY . /usr/share/nginx/html/
 
 # Konfiguracja nginx
 RUN echo 'server { \
