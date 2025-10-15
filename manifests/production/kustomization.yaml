@@ -7,8 +7,8 @@ resources:
   - ../base
 
 images:
-  - name: ghcr.io/exea-centrum/website-simple-argocd-k8s-github-kustomize
-    newTag: f326b0dff7c32d2e0ed2c651351adca105a2e8fc
+  - name: ghcr.io/exea-centrum/website-argocd-k8s-github-kustomize
+    newTag: latest
 
 replicas:
   - name: website-game-theory
