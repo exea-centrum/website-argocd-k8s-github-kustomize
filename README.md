@@ -24,3 +24,230 @@ Po _pushu_ do gałęzi `main`, GitHub Actions:
 - zaktualizuje tag obrazu w Kustomize,
 - ArgoCD automatycznie wdroży nową wersję aplikacji.
 - davtro
+
+## **✅ Kroki naprawy (dla organizacji `exea-centrum`)**
+
+### **1️⃣ Włącz GHCR permissions dla GITHUB_TOKEN**
+
+Wejdź w:
+
+**Settings → Actions → General → Workflow permissions**
+
+i zaznacz:
+
+`✓ Read and write permissions`
+
+oraz
+
+`✓ Allow GitHub Actions to create and approve pull requests`
+
+➡️ Zapisz zmiany.
+
+🔸 To musisz ustawić **w organizacji** (lub repozytorium), bo GHCR jest przypisany do `exea-centrum`, nie do Twojego osobistego konta.
+
+---
+
+### **2️⃣ Upewnij się, że repozytorium ma dostęp do pakietów GHCR**
+
+Wejdź na stronę Twojego pakietu:
+
+[https://github.com/orgs/exea-centrum/packages](https://github.com/orgs/exea-centrum/packages)
+
+Kliknij w swój pakiet `website-argocd-k8s-github-kustomize` →  
+ **Package settings → Manage access**
+
+Dodaj dostęp:
+
+`Repository access → Add repository → wybierz swoje repo (website-argocd-k8s-github-kustomize)`
+
+➡️ Dzięki temu workflow z tego repo **może publikować** obrazy do tego pakietu.
+
+---
+
+### **3️⃣ Upewnij się, że w workflow masz te permissions:**
+
+W `.github/workflows/build.yml`:
+
+`permissions:`  
+ `contents: write`  
+ `packages: write`
+
+Bez tego GitHub Actions nie wygeneruje tokenu z uprawnieniem `write:packages`.
+
+---
+
+### **4️⃣ (Opcjonalnie) Jeśli organizacja wymaga PAT (Personal Access Token)**
+
+Niektóre organizacje blokują GHCR push przy użyciu `GITHUB_TOKEN`.  
+ Wtedy trzeba dodać **sekret `GHCR_PAT`** z osobistym tokenem.
+
+Utwórz token:
+
+GitHub → Settings → Developer settings → Personal access tokens (classic)  
+ Uprawnienia:
+
+- `write:packages`
+
+- `read:packages`
+
+- `repo`
+
+Dodaj go w repozytorium jako:
+
+`Settings → Secrets → Actions → New repository secret`  
+`Name: GHCR_PAT`  
+`Value: <twój token>`
+
+A w workflow:
+
+`- name: Log in to GHCR`  
+ `uses: docker/login-action@v3`  
+ `with:`  
+ `registry: ghcr.io`  
+ `username: ${{ github.actor }}`  
+ `password: ${{ secrets.GHCR_PAT }}`
+
+## **1\. Spójność nazw (Docker image, repo, ścieżki)**
+
+**Zmieniono:**
+
+`- website-simple-argocd-k8s-github-kustomize`  
+`+ website-argocd-k8s-github-kustomize`
+
+✅ **Dlaczego:**  
+ W Twoich błędach z Kubernetes i GHCR widać było, że istnieje repo:  
+ `ghcr.io/exea-centrum/website-argocd-k8s-github-kustomize`,  
+ więc wszystkie nazwy (image, workflow, Kustomize) muszą być identyczne — wcześniej były pomieszane z „simple”.
+
+---
+
+## **🐋 2\. Poprawiony GitHub Actions workflow**
+
+Oryginalny workflow działał, ale miał kilka błędów i braków bezpieczeństwa.
+
+### **🔹 Było:**
+
+`permissions:`  
+ `contents: write`  
+ `packages: write`
+
+👉 **Za wysoko (w `jobs` powinno być, nie globalnie)**  
+ 👉 Zbyt szerokie uprawnienia.
+
+### **🔹 Teraz:**
+
+`permissions:`  
+ `contents: read`  
+ `packages: write`
+
+✅ **Dlaczego:**  
+ To minimalne i zalecane uprawnienia do publikowania obrazów w GHCR.  
+ Dodatkowo — przeniosłem je do poziomu **globalnego** (poprawna składnia YAML GitHub Actions).
+
+---
+
+## **🔐 3\. Logowanie do GHCR z fallback tokenem**
+
+### **🔹 Było:**
+
+`password: ${{ secrets.GITHUB_TOKEN }}`
+
+### **🔹 Teraz:**
+
+`password: ${{ secrets.GHCR_PAT || secrets.GITHUB_TOKEN }}`
+
+✅ **Dlaczego:**  
+ W niektórych organizacjach `GITHUB_TOKEN` ma ograniczenia do GHCR (403 Forbidden).  
+ Dodałem możliwość użycia własnego `GHCR_PAT` (Personal Access Token) jako fallback.
+
+---
+
+## **⚙️ 4\. Najnowsze wersje akcji**
+
+Zaktualizowałem:
+
+- `docker/build-push-action@v5` → **`@v6`**
+
+- `docker/setup-buildx-action@v2` → **`@v3`**
+
+✅ **Dlaczego:**  
+ Te wersje mają poprawki bezpieczeństwa, wydajności i wsparcie dla `cache-to` / `cache-from`.
+
+---
+
+## **🧱 5\. Dodany cache buildów Dockera**
+
+`cache-from: type=gha`  
+`cache-to: type=gha,mode=max`
+
+✅ **Dlaczego:**  
+ Znacząco przyspiesza kolejne buildy — GitHub Actions zachowuje warstwy Dockera w cache.
+
+---
+
+## **🧩 6\. Aktualizacja `kustomization.yaml`**
+
+W bloku:
+
+`sed -i "s|newTag:.*|newTag: ${{ github.sha }}|g" kustomization.yaml`
+
+✅ **Dlaczego:**  
+ To automatycznie podmienia tag obrazu na SHA commita (np. `1cd3ada2530dfdca...`),  
+ co pozwala ArgoCD wykrywać nowe wersje.
+
+---
+
+## **🔁 7\. Poprawiony commit i push**
+
+Dodałem:
+
+`|| echo "No changes to commit"`
+
+✅ **Dlaczego:**  
+ Zapobiega błędowi workflow, jeśli tag w `kustomization.yaml` już się nie zmienił.
+
+---
+
+## **🧾 8\. README.md**
+
+Dodałem:
+
+- pełny link do repozytorium `https://github.com/exea-centrum/website-argocd-k8s-github-kustomize`
+
+- instrukcje dla `GHCR_PAT`
+
+- krótsze, klarowne kroki wdrożenia
+
+---
+
+## **📦 9\. Git initialization / remote**
+
+Zamieniłem dynamiczny remote (`${GITHUB_USER}`) na konkretny:
+
+`git remote add origin https://github.com/exea-centrum/website-argocd-k8s-github-kustomize.git`
+
+✅ **Dlaczego:**  
+ Repo już istnieje — nie trzeba dynamicznie pytać o nazwę użytkownika przy każdym setupie.
+
+---
+
+## **🧹 10\. Estetyka i porządek**
+
+- Zmniejszyłem liczbę zbędnych komentarzy (np. „Twoja zawartość HTML pozostaje bez zmian”).
+
+- Dodałem koloryzowane echo i przejrzyste komunikaty.
+
+- Zachowałem Twoje sekcje (Dockerfile, GitHub Actions, Kubernetes, README).
+
+---
+
+## **🧠 Podsumowanie – efekty zmian**
+
+| Obszar          | Co poprawiono                       | Efekt                           |
+| --------------- | ----------------------------------- | ------------------------------- |
+| 🔤 Nazewnictwo  | `website-simple` → `website-argocd` | Spójność w repo i GHCR          |
+| 🔐 Uprawnienia  | `permissions` i token fallback      | Koniec z błędem `403 Forbidden` |
+| 🐋 Workflow     | Aktualne wersje `actions` i cache   | Szybsze i stabilniejsze buildy  |
+| ⚙️ CI/CD        | `sed` update \+ commit fix          | Auto-update tagów bez crasha    |
+| 📦 Kustomize    | Poprawna ścieżka i nazwa image      | ArgoCD rozpoznaje obraz         |
+| 🧾 Dokumentacja | Uporządkowany README                | Łatwiejszy onboarding           |
