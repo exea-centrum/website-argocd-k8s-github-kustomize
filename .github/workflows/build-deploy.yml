@@ -27,4 +27,4 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/exea-centrum/website-simple-argocd-k8s-github-kustomize:${{ github.sha }}
+          tags: ghcr.io/exea-centrum/website-argocd-k8s-github-kustomize:${{ github.sha }}
