@@ -1,33 +1,55 @@
 #!/bin/bash
 
-# Kolory dla outputu
+# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-echo -e "${GREEN}=== Setup repozytorium website-argocd-k8s-github-kustomize ===${NC}"
+echo -e "${GREEN}=== Setting up repository website-argocd-k8s-github-kustomize ===${NC}"
 
-# Pobierz nazwę organizacji/użytkownika GitHub
-read -p "Podaj nazwę organizacji/użytkownika GitHub: " GITHUB_USER
+# Check for required dependencies
+if ! command -v git &> /dev/null; then
+    echo -e "${RED}Error: Git is not installed. Please install Git and try again.${NC}"
+    exit 1
+fi
 
-# Utwórz strukturę katalogów
-echo -e "${YELLOW}Tworzenie struktury katalogów...${NC}"
+# Prompt for GitHub organization/username
+read -p "Enter GitHub organization/username: " GITHUB_USER
+if [ -z "$GITHUB_USER" ]; then
+    echo -e "${RED}Error: GitHub username/organization cannot be empty.${NC}"
+    exit 1
+fi
+
+# Create directory structure
+echo -e "${YELLOW}Creating directory structure...${NC}"
 mkdir -p .github/workflows
 mkdir -p manifests/base
 mkdir -p manifests/production
+mkdir -p static # Directory for static assets like CSS/JS
 
-# Utwórz Dockerfile
-echo -e "${YELLOW}Tworzenie Dockerfile...${NC}"
+# Create a sample CSS file to avoid COPY failure
+echo -e "${YELLOW}Creating sample style.css...${NC}"
+cat > static/style.css << 'EOF'
+/* Sample CSS for the game theory website */
+body {
+    font-family: Arial, sans-serif;
+}
+EOF
+
+# Create Dockerfile
+echo -e "${YELLOW}Creating Dockerfile...${NC}"
 cat > Dockerfile << 'EOF'
 FROM nginx:alpine
 
-# Skopiuj pliki strony
+# Copy index.html
 COPY index.html /usr/share/nginx/html/
-COPY *.css /usr/share/nginx/html/ 2>/dev/null || true
-COPY *.js /usr/share/nginx/html/ 2>/dev/null || true
 
-# Konfiguracja nginx
+# Copy static assets if they exist
+RUN if ls static/*.css 2>/dev/null; then cp static/*.css /usr/share/nginx/html/; fi
+RUN if ls static/*.js 2>/dev/null; then cp static/*.js /usr/share/nginx/html/; fi
+
+# Nginx configuration
 RUN echo 'server { \
     listen 80; \
     location / { \
@@ -41,9 +63,9 @@ EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
 EOF
 
-# Utwórz GitHub Actions workflow
-echo -e "${YELLOW}Tworzenie GitHub Actions workflow...${NC}"
-cat > .github/workflows/build-deploy.yml << 'EOF'
+# Create GitHub Actions workflow
+echo -e "${YELLOW}Creating GitHub Actions workflow...${NC}"
+cat > .github/workflows/build-deploy.yml << EOF
 name: Build and Push Docker Image
 
 on:
@@ -62,40 +84,43 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4 # Updated to latest version
+
+      - name: List build context
+        run: ls -la # Debug step to show files in context
 
       - name: Login to GHCR
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3 # Updated to latest version
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: \${{ github.actor }}
+          password: \${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v6 # Updated to latest version
         with:
           context: .
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest
+            ghcr.io/\${{ github.repository_owner }}/\${{ env.IMAGE_NAME }}:\${{ github.sha }}
+            ghcr.io/\${{ github.repository_owner }}/\${{ env.IMAGE_NAME }}:latest
 
       - name: Update Kustomization
         run: |
           cd manifests/production
-          sed -i "s|newTag:.*|newTag: ${{ github.sha }}|g" kustomization.yaml
+          sed -i "s|newTag:.*|newTag: \${{ github.sha }}|g" kustomization.yaml
           
       - name: Commit changes
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add manifests/production/kustomization.yaml
-          git commit -m "Update image to ${{ github.sha }}" || echo "No changes"
+          git commit -m "Update image to \${{ github.sha }}" || echo "No changes"
           git push
 EOF
 
-# Utwórz Kubernetes manifests - Deployment
-echo -e "${YELLOW}Tworzenie Kubernetes manifests...${NC}"
+# Create Kubernetes manifests - Deployment
+echo -e "${YELLOW}Creating Kubernetes manifests...${NC}"
 cat > manifests/base/deployment.yaml << EOF
 apiVersion: apps/v1
 kind: Deployment
@@ -116,6 +141,7 @@ spec:
       containers:
       - name: website
         image: ghcr.io/${GITHUB_USER}/website-simple-argocd-k8s-github-kustomize:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 80
           name: http
@@ -140,7 +166,7 @@ spec:
           periodSeconds: 5
 EOF
 
-# Utwórz Service
+# Create Service
 cat > manifests/base/service.yaml << 'EOF'
 apiVersion: v1
 kind: Service
@@ -159,7 +185,7 @@ spec:
     app: website-game-theory
 EOF
 
-# Utwórz Ingress
+# Create Ingress
 cat > manifests/base/ingress.yaml << 'EOF'
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -182,7 +208,7 @@ spec:
               number: 80
 EOF
 
-# Utwórz base kustomization
+# Create base kustomization
 cat > manifests/base/kustomization.yaml << 'EOF'
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
@@ -199,7 +225,7 @@ commonLabels:
   managed-by: argocd
 EOF
 
-# Utwórz production kustomization
+# Create production kustomization
 cat > manifests/production/kustomization.yaml << EOF
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
@@ -218,8 +244,8 @@ replicas:
     count: 2
 EOF
 
-# Utwórz index.html
-echo -e "${YELLOW}Tworzenie index.html...${NC}"
+# Create index.html
+echo -e "${YELLOW}Creating index.html...${NC}"
 cat > index.html << 'HTMLEOF'
 <!DOCTYPE html>
 <html lang="pl">
@@ -228,6 +254,7 @@ cat > index.html << 'HTMLEOF'
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Teoria Gier - Interaktywna Strona</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/style.css">
     <style>
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
@@ -347,7 +374,7 @@ cat > index.html << 'HTMLEOF'
 
     <footer class="border-t border-purple-500/30 backdrop-blur-sm bg-black/20 mt-16">
         <div class="container mx-auto px-6 py-8 text-center text-gray-400">
-            <p>Teoria Gier © 2024</p>
+            <p>Teoria Gier © 2025</p>
         </div>
     </footer>
 
@@ -398,7 +425,20 @@ cat > index.html << 'HTMLEOF'
 </html>
 HTMLEOF
 
-# Utwórz .gitignore
+# Create .dockerignore
+echo -e "${YELLOW}Creating .dockerignore...${NC}"
+cat > .dockerignore << 'EOF'
+.DS_Store
+*.swp
+*.swo
+*~
+.git
+.github
+manifests
+EOF
+
+# Create .gitignore
+echo -e "${YELLOW}Creating .gitignore...${NC}"
 cat > .gitignore << 'EOF'
 .DS_Store
 *.swp
@@ -406,42 +446,81 @@ cat > .gitignore << 'EOF'
 *~
 EOF
 
-# Utwórz README
+# Create README
+echo -e "${YELLOW}Creating README.md...${NC}"
 cat > README.md << EOF
 # Website ArgoCD K8s GitHub Kustomize
 
-Aplikacja webowa z teorią gier wdrażana przez ArgoCD na Kubernetes.
+A web application for game theory, deployed using ArgoCD on Kubernetes with GitHub Actions and Kustomize.
+
+## Prerequisites
+
+- A GitHub account with a repository created.
+- Access to GitHub Container Registry (GHCR).
+- A Kubernetes cluster with ArgoCD installed.
+- \`kubectl\` configured to interact with your cluster.
 
 ## Setup
 
-1. Uruchom \`./setup-repo.sh\` aby utworzyć strukturę projektu
-2. Dodaj repo do GitHub
-3. Skonfiguruj GitHub Container Registry (GHCR) 
-4. Zaaplikuj ArgoCD application: \`kubectl apply -f argocd-application.yaml\`
+1. Run \`./setup-repo.sh\` to create the project structure.
+2. Add the repository to GitHub:
+   \`\`\`bash
+   git remote add origin https://github.com/${GITHUB_USER}/website-argocd-k8s-github-kustomize.git
+   git push -u origin main
+   \`\`\`
+3. Configure GitHub Container Registry (GHCR) in your repository settings (ensure the GitHub Actions workflow has write permissions to packages).
+4. Apply the ArgoCD application manifest to your cluster:
+   \`\`\`bash
+   kubectl apply -f argocd-application.yaml
+   \`\`\`
 
-## Struktura
+## Project Structure
 
-- \`manifests/base/\` - podstawowe manifesty Kubernetes
-- \`manifests/production/\` - kustomizacja dla produkcji
-- \`.github/workflows/\` - GitHub Actions do budowania obrazu
+- \`manifests/base/\`: Base Kubernetes manifests for Deployment, Service, and Ingress.
+- \`manifests/production/\`: Production-specific Kustomize configuration.
+- \`.github/workflows/\`: GitHub Actions workflow for building and pushing the Docker image.
+- \`static/\`: Static assets (CSS, JS) for the web application.
+- \`index.html\`: Main HTML file for the game theory website.
+- \`Dockerfile\`: Docker configuration for building the NGINX-based web server.
 
-## Użycie
+## Usage
 
-Po push do \`main\` branch, GitHub Actions zbuduje obraz i zaktualizuje tag w kustomization.yaml.
-ArgoCD automatycznie wykryje zmiany i wdroży nową wersję.
+- On push to the \`main\` branch, GitHub Actions builds a Docker image, pushes it to GHCR, and updates the image tag in \`manifests/production/kustomization.yaml\`.
+- ArgoCD detects changes in the repository and deploys the updated application to the Kubernetes cluster.
+
+## Testing Locally
+
+To test the Docker build locally:
+\`\`\`bash
+docker buildx build --tag test-image .
+\`\`\`
+
+## Debugging
+
+- Enable debug logging in GitHub Actions by setting the repository secret \`ACTIONS_STEP_DEBUG\` to \`true\`.
+- Check the build context by inspecting the \`ls -la\` output in the GitHub Actions logs.
+- Verify that the Kubernetes manifests are correctly applied using:
+  \`\`\`bash
+  kubectl get all -n davtrokustomize
+  \`\`\`
+
+## Notes
+
+- Ensure the \`davtrokustomize\` namespace exists in your Kubernetes cluster before applying the ArgoCD application.
+- The Ingress resource assumes an NGINX Ingress Controller is installed. Update the \`host\` in \`manifests/base/ingress.yaml` to match your domain.
 EOF
 
-# Inicjalizuj git repo
-echo -e "${YELLOW}Inicjalizacja git repository...${NC}"
-git init
+# Initialize git repository
+echo -e "${YELLOW}Initializing git repository...${NC}"
+git init || { echo -e "${RED}Error: Failed to initialize git repository.${NC}"; exit 1; }
 git add .
-git commit -m "Initial commit - website with game theory"
+git commit -m "Initial commit - website with game theory" || { echo -e "${RED}Error: Failed to commit changes.${NC}"; exit 1; }
 
-echo -e "${GREEN}=== Setup zakończony! ===${NC}"
-echo -e "${YELLOW}Następne kroki:${NC}"
-echo "1. Utwórz repo na GitHub: https://github.com/new"
-echo "2. Dodaj remote: git remote add origin https://github.com/${GITHUB_USER}/website-argocd-k8s-github-kustomize.git"
-echo "3. Push: git push -u origin main"
-echo "4. Zaaplikuj ArgoCD application: kubectl apply -f argocd-application.yaml"
+echo -e "${GREEN}=== Setup completed successfully! ===${NC}"
+echo -e "${YELLOW}Next steps:${NC}"
+echo "1. Create a repository on GitHub: https://github.com/new"
+echo "2. Add remote: git remote add origin https://github.com/${GITHUB_USER}/website-argocd-k8s-github-kustomize.git"
+echo "3. Push changes: git push -u origin main"
+echo "4. Apply ArgoCD application: kubectl apply -f argocd-application.yaml"
 echo ""
-echo -e "${GREEN}Gotowe!${NC}"
+echo -e "${GREEN}Done!${NC}"
