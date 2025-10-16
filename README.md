@@ -4,7 +4,7 @@ Aplikacja webowa z teorią gier wdrażana za pomocą ArgoCD na Kubernetes.
 
 ## Setup
 
-1.  Uruchom `./setup-repo.sh`, aby utworzyć strukturę projektu
+1.  Uruchom `./setup-repo.sh` or `./setup-corect`, aby utworzyć strukturę projektu lub git clone ..... i control+H exea-centrum na Twój
     '''consol
 
         |.github
