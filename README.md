@@ -4,11 +4,49 @@ Aplikacja webowa z teorią gier wdrażana za pomocą ArgoCD na Kubernetes.
 
 ## Setup
 
-1. Uruchom `./setup-repo.sh`, aby utworzyć strukturę projektu
-2. Dodaj repozytorium do GitHub
-3. Skonfiguruj GitHub Container Registry (GHCR)
-4. Zaaplikuj aplikację ArgoCD:  
-   `kubectl apply -f argocd-application.yaml`
+1.  Uruchom `./setup-repo.sh`, aby utworzyć strukturę projektu
+    '''consol
+
+        manifests/
+        ├── base/
+        │   ├── deployment.yaml
+        │   ├── service.yaml
+        │   ├── ingress.yaml
+        │   └── kustomization.yaml
+        └── production/
+            └── kustomization.yaml
+
+''' 2. Dodaj repozytorium do GitHub 3. Skonfiguruj GitHub Container Registry (GHCR) 4. Zaaplikuj aplikację ArgoCD:  
+ `kubectl apply -f argocd-application.yaml`
+'''consol
+
+    apiVersion: argoproj.io/v1alpha1
+    kind: Application
+    metadata:
+      name: website-game-theory
+      namespace: argocd
+    spec:
+      project: default
+
+      source:
+        repoURL: https://github.com/exea-centrum/website-argocd-k8s-github-kustomize.git
+        targetRevision: HEAD
+        path: manifests/production
+
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: davtrokustomize
+
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - PrunePropagationPolicy=foreground
+          - PruneLast=true
+
+'''
 
 ## Struktura
 
@@ -166,6 +204,37 @@ Jeśli nie istnieje — token i workflow ją utworzą automatycznie.
 
       szybki test w przeglądarce http://127.0.0.1:8085/
       microk8s kubectl port-forward -n davtrokustomize svc/website-game-theory-svc 8085:80
+
+'''
+
+### **Wsad dla Argocd z UI Aplications/ New App/ Edit as Yaml**
+
+'''consol
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+name: website-game-theory
+namespace: argocd
+spec:
+project: default
+
+      source:
+        repoURL: https://github.com/exea-centrum/website-argocd-k8s-github-kustomize.git
+        targetRevision: HEAD
+        path: manifests/production
+
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: davtrokustomize
+
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - PrunePropagationPolicy=foreground
+          - PruneLast=true
 
 '''
 
