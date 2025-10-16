@@ -35,6 +35,117 @@ Utwórz **sekret** z danymi logowania do GHCR (z konta, które może odczytywać
  `--docker-password=<twój_personal_access_token> \`  
  `--namespace=davtrokustomize`
 
+# **@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@**
+
+## **Polecam użuć PAT "GHCR_PAT" zamiast GITHUB_TOKEN cteate "GHCR_TOKEN"**
+
+### **1️⃣ Upewnij się, że używasz poprawnego loginu do GHCR**
+
+W pliku workflow (`.github/workflows/build.yaml` lub podobnym) znajdź krok logowania do registry, np.:
+
+`- name: Log in to GitHub Container Registry`  
+ `uses: docker/login-action@v3`  
+ `with:`  
+ `registry: ghcr.io`  
+ `username: ${{ github.actor }}`  
+ `password: ${{ secrets.GITHUB_TOKEN }}`
+
+🟡 **Problem:** domyślny `${{ secrets.GITHUB_TOKEN }}` ma tylko `read:packages`,  
+ nie pozwala na `write:packages` (czyli push obrazów).
+
+---
+
+### **2️⃣ 🔑 Utwórz nowy Personal Access Token (PAT)**
+
+1. Wejdź w [https://github.com/settings/tokens](https://github.com/settings/tokens)
+
+2. Kliknij **"Generate new token (classic)" nowy cteate "GHCR_TOKEN" ale tylko z:**
+
+3. Zaznacz uprawnienia:
+
+   - ✅ `write:packages`
+
+   - ✅ `read:packages`
+
+   - ✅ `repo` _(jeśli prywatny repozytorium)_
+
+4. Skopiuj token
+
+---
+
+### **3️⃣ Dodaj go jako sekret w repozytorium**
+
+W repozytorium → **Settings → Secrets and variables → Actions → New repository secret**  
+ Nazwij np.:
+
+`GHCR_PAT`
+
+i wklej tam token.
+
+---
+
+### **4️⃣ Zaktualizuj workflow**
+
+Zamiast `GITHUB_TOKEN`, użyj sekretu `GHCR_PAT`:
+
+`- name: Log in to GitHub Container Registry`  
+ `uses: docker/login-action@v3`  
+ `with:`  
+ `registry: ghcr.io`  
+ `username: ${{ github.actor }}`  
+ `password: ${{ secrets.GHCR_PAT }}`
+
+---
+
+### **5️⃣ (opcjonalnie) Sprawdź, czy repozytorium GHCR jest dostępne**
+
+Wejdź na  
+ 🔗 `https://github.com/orgs/exea-centrum/packages`
+
+i zobacz, czy masz tam paczkę `website-simple-argocd-k8s-github-kustomize`.
+
+Jeśli nie istnieje — token i workflow ją utworzą automatycznie.
+
+---
+
+### **✅ Gotowy przykład sekcji w workflow**
+
+'''consol
+`name: Build and Push Docker image`
+
+`on:`  
+ `push:`  
+ `branches:`  
+ `- main`
+
+`jobs:`  
+ `build:`  
+ `runs-on: ubuntu-latest`  
+ `steps:`  
+ `- name: Checkout code`  
+ `uses: actions/checkout@v4`
+
+      `- name: Set up Docker Buildx`
+        `uses: docker/setup-buildx-action@v3`
+
+      `- name: Log in to GitHub Container Registry`
+        `uses: docker/login-action@v3`
+        `with:`
+          `registry: ghcr.io`
+          `username: ${{ github.actor }}`
+          `password: ${{ secrets.GHCR_PAT }}`
+
+      `- name: Build and push image`
+        `uses: docker/build-push-action@v6`
+        `with:`
+          `context: .`
+          `push: true`
+          `tags: ghcr.io/exea-centrum/website-argocd-k8s-github-kustomize:${{ github.sha }}`
+
+'''
+
+# **!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!**
+
 ## **✅ Kroki naprawy (dla organizacji `exea-centrum`)**
 
 ### **1️⃣ Włącz GHCR permissions dla GITHUB_TOKEN**
@@ -77,11 +188,11 @@ Dodaj dostęp:
 ### **3️⃣ Upewnij się, że w workflow masz te permissions:**
 
 W `.github/workflows/build.yml`:
-
+'''consol
 `permissions:`  
  `contents: write`  
  `packages: write`
-
+'''
 Bez tego GitHub Actions nie wygeneruje tokenu z uprawnieniem `write:packages`.
 
 ---
@@ -109,13 +220,14 @@ Dodaj go w repozytorium jako:
 `Value: <twój token>`
 
 A w workflow:
-
+'''consol
 `- name: Log in to GHCR`  
  `uses: docker/login-action@v3`  
  `with:`  
  `registry: ghcr.io`  
  `username: ${{ github.actor }}`  
  `password: ${{ secrets.GHCR_PAT }}`
+'''
 
 ## **1\. Spójność nazw (Docker image, repo, ścieżki)**
 
@@ -175,21 +287,23 @@ Oryginalny workflow działał, ale miał kilka błędów i braków bezpieczeńst
 ## **⚙️ 4\. Najnowsze wersje akcji**
 
 Zaktualizowałem:
+'''consol
 
 - `docker/build-push-action@v5` → **`@v6`**
 
 - `docker/setup-buildx-action@v2` → **`@v3`**
-
-✅ **Dlaczego:**  
- Te wersje mają poprawki bezpieczeństwa, wydajności i wsparcie dla `cache-to` / `cache-from`.
+  '''
+  ✅ **Dlaczego:**  
+   Te wersje mają poprawki bezpieczeństwa, wydajności i wsparcie dla `cache-to` / `cache-from`.
 
 ---
 
 ## **🧱 5\. Dodany cache buildów Dockera**
 
+'''consol
 `cache-from: type=gha`  
 `cache-to: type=gha,mode=max`
-
+'''
 ✅ **Dlaczego:**  
  Znacząco przyspiesza kolejne buildy — GitHub Actions zachowuje warstwy Dockera w cache.
 
@@ -198,9 +312,9 @@ Zaktualizowałem:
 ## **🧩 6\. Aktualizacja `kustomization.yaml`**
 
 W bloku:
-
+'''consol
 `sed -i "s|newTag:.*|newTag: ${{ github.sha }}|g" kustomization.yaml`
-
+'''
 ✅ **Dlaczego:**  
  To automatycznie podmienia tag obrazu na SHA commita (np. `1cd3ada2530dfdca...`),  
  co pozwala ArgoCD wykrywać nowe wersje.
