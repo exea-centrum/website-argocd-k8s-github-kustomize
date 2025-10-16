@@ -110,6 +110,10 @@ Jeśli nie istnieje — token i workflow ją utworzą automatycznie.
 
 ### **✅ Gotowy przykład sekcji w workflow**
 
+#### **potrzebne by ubunt w kontenerze mogło budować i zapisywać obrazy w GHCR.io**
+
+#### **jak widać poniżej GitHub Actions buduje obraz i wypchycha po -main czy deweloper do dev a admin do main**
+
 '''consol
 `name: Build and Push Docker image`
 
@@ -142,6 +146,24 @@ Jeśli nie istnieje — token i workflow ją utworzą automatycznie.
           `push: true`
           `tags: ghcr.io/exea-centrum/website-argocd-k8s-github-kustomize:${{ github.sha }}`
 
+'''
+
+### **Poniższe polecenia wykonaj na maszynie z k8s i ArgoCD, przykład na microk8s bastion**
+
+### **potrzebne by argoCD mogło pobierać obraz z GitHube ghcr.io**
+
+'''consol
+export GHCR*TOKEN=ghp*...........
+
+kubectl create secret docker-registry ghcr-secret --docker-server=ghcr.io --docker-username=exea-centrum --docker-password=ghp\_....................... lub ->GHCR_TOKEN --namespace=davtrokustomize
+
+możesz z UI k8s lub k9s albo AgroCD poniższe polecenie wykonać
+microk8s kubectl rollout restart deployment website-game-theory -n davtrokustomize
+
+snap install k9s
+
+szybki test w przeglądarce http://127.0.0.1:8085/
+microk8s kubectl port-forward -n davtrokustomize svc/website-game-theory-svc 8085:80
 '''
 
 # **!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!**
