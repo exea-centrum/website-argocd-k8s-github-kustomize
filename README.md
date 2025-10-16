@@ -35,9 +35,9 @@ Utwórz **sekret** z danymi logowania do GHCR (z konta, które może odczytywać
  `--docker-password=<twój_personal_access_token> \`  
  `--namespace=davtrokustomize`
 
-# **@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@**
+# **@@@@@@@@@@@@@@@@@@@@@@@@@**
 
-## **Polecam użuć PAT "GHCR_PAT" zamiast GITHUB_TOKEN cteate "GHCR_TOKEN"**
+## **Polecam użyć PAT "GHCR_PAT" zamiast GITHUB_TOKEN cteate "GHCR_TOKEN"**
 
 ### **1️⃣ Upewnij się, że używasz poprawnego loginu do GHCR**
 
@@ -166,7 +166,6 @@ Jeśli nie istnieje — token i workflow ją utworzą automatycznie.
 
       szybki test w przeglądarce http://127.0.0.1:8085/
       microk8s kubectl port-forward -n davtrokustomize svc/website-game-theory-svc 8085:80
-
 
 '''
 
