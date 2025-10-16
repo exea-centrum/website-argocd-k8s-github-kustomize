@@ -7,6 +7,9 @@ Aplikacja webowa z teorią gier wdrażana za pomocą ArgoCD na Kubernetes.
 1.  Uruchom `./setup-repo.sh`, aby utworzyć strukturę projektu
     '''consol
 
+        |.github
+          |workflows
+            |--build-deploy.yml
         manifests/
         ├── base/
         │   ├── deployment.yaml
@@ -15,9 +18,15 @@ Aplikacja webowa z teorią gier wdrażana za pomocą ArgoCD na Kubernetes.
         │   └── kustomization.yaml
         └── production/
             └── kustomization.yaml
+        |.gitignore
+        |Dockerfile
+        |index.html
 
-''' 2. Dodaj repozytorium do GitHub 3. Skonfiguruj GitHub Container Registry (GHCR) 4. Zaaplikuj aplikację ArgoCD:  
- `kubectl apply -f argocd-application.yaml`
+'''
+
+2.  Dodaj repozytorium do GitHub 3. Skonfiguruj GitHub Container Registry (GHCR) 4. Zaaplikuj aplikację ArgoCD:  
+    `kubectl apply -f argocd-application.yaml`
+
 '''consol
 
     apiVersion: argoproj.io/v1alpha1
