@@ -115,19 +115,20 @@ Jeśli nie istnieje — token i workflow ją utworzą automatycznie.
 #### **jak widać poniżej GitHub Actions buduje obraz i wypchycha po -main czy deweloper do dev a admin do main**
 
 '''consol
-`name: Build and Push Docker image`
 
-`on:`  
- `push:`  
- `branches:`  
- `- main`
+      `name: Build and Push Docker image`
 
-`jobs:`  
- `build:`  
- `runs-on: ubuntu-latest`  
- `steps:`  
- `- name: Checkout code`  
- `uses: actions/checkout@v4`
+      `on:`
+      `push:`
+      `branches:`
+      `- main`
+
+      `jobs:`
+      `build:`
+      `runs-on: ubuntu-latest`
+      `steps:`
+      `- name: Checkout code`
+      `uses: actions/checkout@v4`
 
       `- name: Set up Docker Buildx`
         `uses: docker/setup-buildx-action@v3`
@@ -153,17 +154,20 @@ Jeśli nie istnieje — token i workflow ją utworzą automatycznie.
 ### **potrzebne by argoCD mogło pobierać obraz z GitHube ghcr.io**
 
 '''consol
-export GHCR*TOKEN=ghp*...........
 
-kubectl create secret docker-registry ghcr-secret --docker-server=ghcr.io --docker-username=exea-centrum --docker-password=ghp\_....................... lub ->GHCR_TOKEN --namespace=davtrokustomize
+      export GHCR*TOKEN=ghp*...........
 
-możesz z UI k8s lub k9s albo AgroCD poniższe polecenie wykonać
-microk8s kubectl rollout restart deployment website-game-theory -n davtrokustomize
+      kubectl create secret docker-registry ghcr-secret --docker-server=ghcr.io --docker-username=exea-centrum --docker-password=ghp\_....................... lub ->GHCR_TOKEN --namespace=davtrokustomize
 
-snap install k9s
+      możesz z UI k8s lub k9s albo AgroCD poniższe polecenie wykonać
+      microk8s kubectl rollout restart deployment website-game-theory -n davtrokustomize
 
-szybki test w przeglądarce http://127.0.0.1:8085/
-microk8s kubectl port-forward -n davtrokustomize svc/website-game-theory-svc 8085:80
+      snap install k9s
+
+      szybki test w przeglądarce http://127.0.0.1:8085/
+      microk8s kubectl port-forward -n davtrokustomize svc/website-game-theory-svc 8085:80
+
+
 '''
 
 # **!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!**
